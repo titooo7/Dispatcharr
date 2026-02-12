@@ -165,7 +165,7 @@ python manage.py migrate
 ```
 
 ## 8. Required Infrastructure Fix
-**File:** `docker/docker-compose.aio.yml`
+**File:** `docker/docker-compose.aio.yml` (and other AIO variants)
 
 To prevent "File Not Found" errors during the build process, the build context must be set to the project root rather than the docker subdirectory:
 
@@ -177,7 +177,15 @@ services:
       dockerfile: docker/Dockerfile
 ```
 
-## 9. README Logo Update (Optional)
+## 9. Environment Configuration (.env)
+If using `docker-compose.repostudy_aio.yml`, you must define the `DOMAIN` variable in a `.env` file at the project root to ensure Traefik labels and internal links are generated correctly.
+
+**File:** `.env`
+```env
+DOMAIN=yourdomain.com
+```
+
+## 10. README Logo Update (Optional)
 **File:** `README.md`
 
 Update the logo URL to point to your specific repository to ensure it renders correctly:

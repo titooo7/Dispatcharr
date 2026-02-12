@@ -109,11 +109,24 @@ docker run -d \
 ---
 
 ###  My own Deployment Instructions
-docker compose -f docker/docker-compose.repostudy-aio.yml compose up -d --build
-And once the container is running:
-docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py makemigrations accounts"
 
+When using the specialized **Repostudy AIO** configuration, you must first create a `.env` file in the project root:
+
+```bash
+# Create .env from template
+cp .env.example .env
+# Edit .env and set your DOMAIN (e.g., DOMAIN=repostudy.sumzin.xyz)
+```
+
+Then run the build and apply migrations:
+
+```bash
+docker compose -f docker/docker-compose.repostudy_aio.yml up -d --build
+
+# Apply database migrations
+docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py makemigrations accounts"
 docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py migrate"
+```
 
 ---
 ### 🛠️ Building from Source
