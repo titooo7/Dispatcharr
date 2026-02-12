@@ -1,0 +1,46 @@
+services:
+  dispatcharr_repostudy:
+    #image: ghcr.io/dispatcharr/dispatcharr:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: dispatcharr_repostudy
+    # REMOVED PORTS MAPPING TO HIDE IP
+    volumes:
+      - dispatcharr_data_repostudy:/data
+    environment:
+      - DISPATCHARR_ENV=aio
+      - REDIS_HOST=localhost
+      - CELERY_BROKER_URL=redis://localhost:6379/0
+      - DISPATCHARR_LOG_LEVEL=info
+      - TZ=Europe/Madrid
+      - NODE_ENV=production
+      - ORIGIN=https://${DOMAIN}
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - saltbox
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=saltbox"
+      # HTTPS Router
+      - "traefik.http.routers.repostudy-https.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.repostudy-https.entrypoints=websecure"
+      - "traefik.http.routers.repostudy-https.tls=true"
+      # now i dont use zerossl so i comment below, i use cloudflare own cert as detailed at the end of chat https://gemini.google.com/app/59c435f6c55386cc
+      #- "traefik.http.routers.repostudy-https.tls.certresolver=zerossl"
+      - "traefik.http.routers.repostudy-https.tls=true"
+      # HTTP Router (Redirection)
+      - "traefik.http.routers.repostudy-http.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.repostudy-http.entrypoints=web"
+      - "traefik.http.routers.repostudy-http.middlewares=repostudy-redirect-scheme"
+      - "traefik.http.middlewares.repostudy-redirect-scheme.redirectscheme.scheme=https"
+      # Connection to App Port
+      - "traefik.http.services.repostudy.loadbalancer.server.port=9191"
+
+volumes:
+  dispatcharr_data_repostudy:
+
+networks:
+  saltbox:
+    external: true
