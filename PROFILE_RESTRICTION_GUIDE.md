@@ -163,3 +163,25 @@ After applying code changes, run:
 python manage.py makemigrations accounts
 python manage.py migrate
 ```
+
+## 8. Required Infrastructure Fix
+**File:** `docker/docker-compose.aio.yml`
+
+To prevent "File Not Found" errors during the build process, the build context must be set to the project root rather than the docker subdirectory:
+
+```yaml
+services:
+  dispatcharr:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+```
+
+## 9. README Logo Update (Optional)
+**File:** `README.md`
+
+Update the logo URL to point to your specific repository to ensure it renders correctly:
+
+```markdown
+<img src="https://github.com/titooo7/Dispatcharr/blob/main/frontend/src/images/logo.png?raw=true" height="200" alt="Dispatcharr Logo" />
+```
