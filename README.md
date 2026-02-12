@@ -108,6 +108,14 @@ docker run -d \
 
 ---
 
+###  My own Deployment Instructions
+docker compose -f docker/docker-compose.repostudy-aio.yml compose up -d --build
+And once the container is running:
+docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py makemigrations accounts"
+
+docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py migrate"
+
+---
 ### 🛠️ Building from Source
 
 > ⚠️ **Warning**: Not officially supported — but if you're here, you know what you're doing!
