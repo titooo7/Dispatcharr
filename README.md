@@ -83,7 +83,7 @@ Build custom integrations using Dispatcharr's robust plugin system. Automate tas
 
 ## 🚀 Get Started in Minutes
 
-### 🐳 Quick Start with Docker (Recommended)
+### 🐳 Quick Start with Docker (Recommended but I don't use it as I use my own docker compose file)
 
 ```bash
 docker pull ghcr.io/dispatcharr/dispatcharr:latest
@@ -102,9 +102,10 @@ docker run -d \
 
 | Use Case                    | File                                                    | Description                                                                                                   |
 | --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **All-in-One Deployment**   | [docker-compose.aio.yml](docker/docker-compose.aio.yml) | ⭐ Recommended! A simple, all-in-one solution — everything runs in a single container for quick setup.        |
+| **All-in-One Deployment**   | [docker-compose.aio.yml](docker/docker-compose.aio.yml) | ⭐ Original Recommendation! A simple, all-in-one solution — everything runs in a single container for quick setup.        |
 | **Modular Deployment**      | [docker-compose.yml](docker/docker-compose.yml)         | Separate containers for Dispatcharr, Celery, Redis, and Postgres — perfect if you want more granular control. |
 | **Development Environment** | [docker-compose.dev.yml](docker/docker-compose.dev.yml) | Developer-friendly setup with pre-configured ports and settings for contributing and testing.                 |
+| **My Own Deployment (Tito**   | [docker-compose.repostudy-aio.yml](docker/docker-compose.repostudy-aio.yml) | ⭐ This is what I use so it can have my own changes. If the others don't work then use this one.        |
 
 ---
 
@@ -115,7 +116,7 @@ When using the specialized **Repostudy AIO** configuration, you must first creat
 ```bash
 # Create .env from template
 cp .env.example .env
-# Edit .env and set your DOMAIN (e.g., DOMAIN=repostudy.sumzin.xyz)
+# Edit .env and set your DOMAIN (e.g., DOMAIN=localhost:9191 or DOMAIN=mydomain.com)
 ```
 
 Then run the build and apply migrations:
@@ -127,15 +128,6 @@ docker compose -f docker/docker-compose.repostudy_aio.yml up -d --build
 docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py makemigrations accounts"
 docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py migrate"
 ```
-
----
-### 🛠️ Building from Source
-
-> ⚠️ **Warning**: Not officially supported — but if you're here, you know what you're doing!
-
-If you are running a Debian-based OS, use the `debian_install.sh` script. For other OS, contribute a script and we’ll add it!
-
----
 
 ## 🤝 Want to Contribute?
 
