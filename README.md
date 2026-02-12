@@ -151,6 +151,37 @@ If you make changes to the code and want to push them to your GitHub fork and up
    ./scripts/publish.sh app
    ```
 
+### 🆘 What to do if you accidentally delete the cloned repo in the server?
+
+If the project directory is deleted, don't panic! Since you have been pushing your code to GitHub and your images to GHCR, recovery is easy.
+
+#### Option A: Restore for Development (Recommended)
+Use this if you want to keep making changes to the code.
+1. **Re-clone the repo:** `git clone https://github.com/titooo7/Dispatcharr/`
+2. **Restore your `.env`:** (Hopefully you have a backup of your `DOMAIN` and other secrets).
+3. **Run the build:** `docker compose -f docker/docker-compose.repostudy_aio.yml up -d --build`
+   * *Note: This will be fast because it will pull the heavy 'base' image from your GHCR instead of rebuilding it.*
+
+#### Option B: Just Run the App (Production)
+Use this if you just want the app running and don't need the source code files on the disk. Create a simple `docker-compose.yml`:
+```yaml
+services:
+  dispatcharr:
+    image: ghcr.io/titooo7/dispatcharr:latest
+    container_name: dispatcharr_repostudy
+    environment:
+      - DOMAIN=yourdomain.com
+      # ... add other env vars from .env ...
+    volumes:
+      - dispatcharr_data_repostudy:/data
+    # ... add your networks/labels/devices ...
+```
+Then just run `docker compose up -d`.
+
+> [!IMPORTANT]
+> **Code and Images** are backed up on GitHub/GHCR.
+> **Database and Settings** are stored in your Docker Volume (`dispatcharr_data_repostudy`). As long as you don't delete the Docker Volume, your data is safe!
+
 ## 🤝 Want to Contribute?
 
 We welcome **PRs, issues, ideas, and suggestions**!\
