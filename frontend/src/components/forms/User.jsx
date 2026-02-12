@@ -29,6 +29,7 @@ const User = ({ user = null, isOpen, onClose }) => {
 
   const [, setEnableXC] = useState(false);
   const [selectedProfiles, setSelectedProfiles] = useState(new Set());
+  const [m3uProfiles, setM3uProfiles] = useState([]);
 
   const form = useForm({
     mode: 'uncontrolled',
@@ -41,6 +42,7 @@ const User = ({ user = null, isOpen, onClose }) => {
       password: '',
       xc_password: '',
       channel_profiles: [],
+      m3u_profiles: [],
       hide_adult_content: false,
     },
 
@@ -61,6 +63,23 @@ const User = ({ user = null, isOpen, onClose }) => {
           : null,
     }),
   });
+
+  useEffect(() => {
+    const fetchM3uProfiles = async () => {
+      try {
+        const response = await API.getM3UProfilesAll();
+        if (response) {
+          setM3uProfiles(response);
+        }
+      } catch (error) {
+        console.error('Failed to fetch M3U profiles:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchM3uProfiles();
+    }
+  }, [isOpen]);
 
   const onChannelProfilesChange = (values) => {
     let newValues = new Set(values);
@@ -94,6 +113,9 @@ const User = ({ user = null, isOpen, onClose }) => {
     if (values.channel_profiles.includes('0')) {
       values.channel_profiles = [];
     }
+
+    // Convert string IDs to integers for m3u_profiles
+    values.m3u_profiles = values.m3u_profiles.map((id) => parseInt(id));
 
     if (!user && values.user_level == USER_LEVELS.STREAMER) {
       // Generate random password - they can't log in, but user can't be created without a password
@@ -132,6 +154,7 @@ const User = ({ user = null, isOpen, onClose }) => {
           user.channel_profiles.length > 0
             ? user.channel_profiles.map((id) => `${id}`)
             : ['0'],
+        m3u_profiles: (user.m3u_profiles || []).map((id) => `${id}`),
         xc_password: customProps.xc_password || '',
         hide_adult_content: customProps.hide_adult_content || false,
       });
@@ -197,6 +220,21 @@ const User = ({ user = null, isOpen, onClose }) => {
                 })}
                 {...form.getInputProps('user_level')}
                 key={form.key('user_level')}
+              />
+            )}
+
+            {showPermissions && (
+              <MultiSelect
+                label="M3U Account Profiles"
+                description="Restrict this user to specific M3U account profiles"
+                {...form.getInputProps('m3u_profiles')}
+                key={form.key('m3u_profiles')}
+                data={m3uProfiles.map((profile) => ({
+                  label: `${profile.name} (${profile.account?.name || 'Unknown'})`,
+                  value: `${profile.id}`,
+                }))}
+                searchable
+                clearable
               />
             )}
           </Stack>

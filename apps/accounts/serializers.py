@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission
 from .models import User
 from apps.channels.models import ChannelProfile
+from apps.m3u.models import M3UAccountProfile
 
 
 # 🔹 Fix for Permission serialization
@@ -28,6 +29,9 @@ class UserSerializer(serializers.ModelSerializer):
     channel_profiles = serializers.PrimaryKeyRelatedField(
         queryset=ChannelProfile.objects.all(), many=True, required=False
     )
+    m3u_profiles = serializers.PrimaryKeyRelatedField(
+        queryset=M3UAccountProfile.objects.all(), many=True, required=False
+    )
 
     class Meta:
         model = User
@@ -38,6 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
             "user_level",
             "password",
             "channel_profiles",
+            "m3u_profiles",
             "custom_properties",
             "avatar_config",
             "is_active",
@@ -51,6 +56,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         channel_profiles = validated_data.pop("channel_profiles", [])
+        m3u_profiles = validated_data.pop("m3u_profiles", [])
 
         user = User(**validated_data)
         user.set_password(validated_data["password"])
@@ -58,12 +64,14 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
 
         user.channel_profiles.set(channel_profiles)
+        user.m3u_profiles.set(m3u_profiles)
 
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
         channel_profiles = validated_data.pop("channel_profiles", None)
+        m3u_profiles = validated_data.pop("m3u_profiles", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -75,5 +83,8 @@ class UserSerializer(serializers.ModelSerializer):
 
         if channel_profiles is not None:
             instance.channel_profiles.set(channel_profiles)
+        
+        if m3u_profiles is not None:
+            instance.m3u_profiles.set(m3u_profiles)
 
         return instance

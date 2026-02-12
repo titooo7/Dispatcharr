@@ -464,8 +464,20 @@ class M3UAccountProfileViewSet(viewsets.ModelViewSet):
             return [Authenticated()]
 
     def get_queryset(self):
-        m3u_account_id = self.kwargs["account_id"]
-        return M3UAccountProfile.objects.filter(m3u_account_id=m3u_account_id)
+        if self.action == 'list_all':
+            return M3UAccountProfile.objects.all()
+        
+        m3u_account_id = self.kwargs.get("account_id")
+        if m3u_account_id:
+            return M3UAccountProfile.objects.filter(m3u_account_id=m3u_account_id)
+        return M3UAccountProfile.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='all')
+    def list_all(self, request):
+        """List all M3U account profiles across all accounts"""
+        profiles = self.get_queryset()
+        serializer = self.get_serializer(profiles, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         # Get the account ID from the URL

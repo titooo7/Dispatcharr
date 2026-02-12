@@ -391,9 +391,12 @@ class Channel(models.Model):
 
         return stream_profile
 
-    def get_stream(self):
+    def get_stream(self, user=None):
         """
         Finds an available stream for the requested channel and returns the selected stream and profile.
+
+        Args:
+            user: Optional User object to filter M3U profiles
 
         Returns:
             Tuple[Optional[int], Optional[int], Optional[str]]: (stream_id, profile_id, error_reason)
@@ -415,7 +418,16 @@ class Channel(models.Model):
                 if profile_id_bytes:
                     try:
                         profile_id = int(profile_id_bytes)
-                        return stream_id, profile_id, None
+                        
+                        # Verify if the existing profile is allowed for the user
+                        if user and user.m3u_profiles.exists():
+                            if not user.m3u_profiles.filter(id=profile_id).exists():
+                                logger.debug(f"Existing profile {profile_id} is not allowed for user {user.username}. Will try to switch.")
+                                # We don't return here, we fall through to try and find a better stream/profile
+                            else:
+                                return stream_id, profile_id, None
+                        else:
+                            return stream_id, profile_id, None
                     except (ValueError, TypeError):
                         logger.debug(
                             f"Invalid profile ID retrieved from Redis: {profile_id_bytes}"
@@ -425,9 +437,14 @@ class Channel(models.Model):
                     f"Invalid stream ID retrieved from Redis: {stream_id_bytes}"
                 )
 
-        # No existing active stream, attempt to assign a new one
+        # No existing active stream or existing one is not allowed, attempt to assign a new one
         has_streams_but_maxed_out = False
         has_active_profiles = False
+
+        # Pre-fetch user profiles if needed
+        allowed_profile_ids = None
+        if user and user.m3u_profiles.exists():
+            allowed_profile_ids = set(user.m3u_profiles.values_list('id', flat=True))
 
         # Iterate through channel streams and their profiles
         for stream in self.streams.all().order_by("channelstream__order"):
@@ -441,19 +458,29 @@ class Channel(models.Model):
                 continue
 
             m3u_profiles = m3u_account.profiles.filter(is_active=True)
+            
+            # Filter profiles based on user's allowed profiles
+            if allowed_profile_ids is not None:
+                m3u_profiles = m3u_profiles.filter(id__in=allowed_profile_ids)
+
             default_profile = next(
                 (obj for obj in m3u_profiles if obj.is_default), None
             )
 
-            if not default_profile:
-                logger.debug(f"M3U account {m3u_account.id} has no active default profile")
+            # If we filtered out the default profile or it doesn't exist, we still try others
+            profiles_to_try = []
+            if default_profile:
+                profiles_to_try.append(default_profile)
+            
+            for obj in m3u_profiles:
+                if not obj.is_default:
+                    profiles_to_try.append(obj)
+
+            if not profiles_to_try:
+                logger.debug(f"M3U account {m3u_account.id} has no compatible active profiles for user {user.username if user else 'Anonymous'}")
                 continue
 
-            profiles = [default_profile] + [
-                obj for obj in m3u_profiles if not obj.is_default
-            ]
-
-            for profile in profiles:
+            for profile in profiles_to_try:
                 has_active_profiles = True
 
                 profile_connections_key = f"profile_connections:{profile.id}"
@@ -488,11 +515,14 @@ class Channel(models.Model):
 
         # No available streams - determine specific reason
         if has_streams_but_maxed_out:
-            error_reason = "All active M3U profiles have reached maximum connection limits"
+            error_reason = "All allowed active M3U profiles have reached maximum connection limits"
         elif has_active_profiles:
             error_reason = "No compatible active profile found for any assigned stream"
         else:
-            error_reason = "No active profiles found for any assigned stream"
+            if allowed_profile_ids is not None:
+                error_reason = "No allowed active profiles found for any assigned stream"
+            else:
+                error_reason = "No active profiles found for any assigned stream"
 
         return None, None, error_reason
 

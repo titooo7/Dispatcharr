@@ -20,6 +20,11 @@ class User(AbstractUser):
         blank=True,
         related_name="users",
     )
+    m3u_profiles = models.ManyToManyField(
+        "m3u.M3UAccountProfile",
+        blank=True,
+        related_name="users",
+    )
     user_level = models.IntegerField(default=UserLevel.STREAMER)
     custom_properties = models.JSONField(default=dict, blank=True, null=True)
 

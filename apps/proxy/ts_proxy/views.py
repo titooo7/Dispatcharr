@@ -45,12 +45,21 @@ logger = get_logger()
 
 
 @api_view(["GET"])
-def stream_ts(request, channel_id):
+def stream_ts(request, channel_id, user_id=None):
     if not network_access_allowed(request, "STREAMS"):
         return JsonResponse({"error": "Forbidden"}, status=403)
 
     """Stream TS data to client with immediate response and keep-alive packets during initialization"""
     channel = get_stream_object(channel_id)
+
+    # Get user object if user_id is provided
+    user = None
+    if user_id:
+        try:
+            user = User.objects.get(id=user_id)
+            logger.debug(f"Streaming for user: {user.username}")
+        except User.DoesNotExist:
+            logger.warning(f"User ID {user_id} not found for stream request")
 
     client_user_agent = None
     proxy_server = ProxyServer.get_instance()
@@ -93,20 +102,33 @@ def stream_ts(request, channel_id):
                         ChannelState.CONNECTING,
                         ChannelState.STOPPING,
                     ]:
-                        needs_initialization = False
-                        logger.debug(
-                            f"[{client_id}] Channel {channel_id} in state {channel_state}, skipping initialization"
-                        )
+                        # If a user is provided, we must verify if the current profile is allowed
+                        if user and user.m3u_profiles.exists():
+                            profile_field = ChannelMetadataField.M3U_PROFILE.encode("utf-8")
+                            if profile_field in metadata:
+                                current_profile_id = int(metadata[profile_field].decode("utf-8"))
+                                if not user.m3u_profiles.filter(id=current_profile_id).exists():
+                                    logger.info(f"[{client_id}] Current profile {current_profile_id} not allowed for user {user.username}, forcing re-init")
+                                    needs_initialization = True
+                                else:
+                                    needs_initialization = False
+                        else:
+                            needs_initialization = False
 
-                        # Special handling for initializing/connecting states
-                        if channel_state in [
-                            ChannelState.INITIALIZING,
-                            ChannelState.CONNECTING,
-                        ]:
-                            channel_initializing = True
+                        if not needs_initialization:
                             logger.debug(
-                                f"[{client_id}] Channel {channel_id} is still initializing, client will wait"
+                                f"[{client_id}] Channel {channel_id} in state {channel_state}, skipping initialization"
                             )
+
+                            # Special handling for initializing/connecting states
+                            if channel_state in [
+                                ChannelState.INITIALIZING,
+                                ChannelState.CONNECTING,
+                            ]:
+                                channel_initializing = True
+                                logger.debug(
+                                    f"[{client_id}] Channel {channel_id} is still initializing, client will wait"
+                                )
                     # Terminal states - channel needs cleanup before reinitialization
                     elif channel_state in [
                         ChannelState.ERROR,
@@ -124,10 +146,24 @@ def stream_ts(request, channel_id):
                             owner_heartbeat_key = f"ts_proxy:worker:{owner}:heartbeat"
                             if proxy_server.redis_client.exists(owner_heartbeat_key):
                                 # Owner is still active with unknown state - don't reinitialize
-                                needs_initialization = False
-                                logger.debug(
-                                    f"[{client_id}] Channel {channel_id} has active owner {owner}, skipping init"
-                                )
+                                # Still check profile if user is provided
+                                if user and user.m3u_profiles.exists():
+                                    profile_field = ChannelMetadataField.M3U_PROFILE.encode("utf-8")
+                                    if profile_field in metadata:
+                                        current_profile_id = int(metadata[profile_field].decode("utf-8"))
+                                        if not user.m3u_profiles.filter(id=current_profile_id).exists():
+                                            needs_initialization = True
+                                        else:
+                                            needs_initialization = False
+                                    else:
+                                        needs_initialization = False
+                                else:
+                                    needs_initialization = False
+                                
+                                if not needs_initialization:
+                                    logger.debug(
+                                        f"[{client_id}] Channel {channel_id} has active owner {owner}, skipping init"
+                                    )
                             else:
                                 # Owner dead - needs reinitialization
                                 needs_initialization = True
@@ -138,16 +174,22 @@ def stream_ts(request, channel_id):
         # Start initialization if needed
         if needs_initialization or not proxy_server.check_if_channel_exists(channel_id):
             logger.info(f"[{client_id}] Starting channel {channel_id} initialization")
-            # Force cleanup of any previous instance if in terminal state
+            # Force cleanup of any previous instance if in terminal state or if we're forcing a profile switch
             if channel_state in [
                 ChannelState.ERROR,
                 ChannelState.STOPPING,
                 ChannelState.STOPPED,
+                ChannelState.ACTIVE,
+                ChannelState.BUFFERING,
+                ChannelState.INITIALIZING,
+                ChannelState.CONNECTING,
+                ChannelState.WAITING_FOR_CLIENTS,
             ]:
-                logger.warning(
-                    f"[{client_id}] Channel {channel_id} in state {channel_state}, forcing cleanup"
-                )
-                ChannelService.stop_channel(channel_id)
+                if needs_initialization:
+                    logger.warning(
+                        f"[{client_id}] Channel {channel_id} in state {channel_state}, forcing cleanup for re-init"
+                    )
+                    ChannelService.stop_channel(channel_id)
 
             # Use fixed retry interval and timeout
             retry_timeout = 3  # 3 seconds total timeout
@@ -166,7 +208,7 @@ def stream_ts(request, channel_id):
             while should_retry and time.time() - wait_start_time < retry_timeout:
                 attempt += 1
                 stream_url, stream_user_agent, transcode, profile_value = (
-                    generate_stream_url(channel_id)
+                    generate_stream_url(channel_id, user=user)
                 )
 
                 if stream_url is not None:
@@ -177,7 +219,7 @@ def stream_ts(request, channel_id):
 
                 # On first failure, check if the error is retryable
                 if attempt == 1:
-                    _, _, error_reason = channel.get_stream()
+                    _, _, error_reason = channel.get_stream(user=user)
                     if error_reason and "maximum connection limits" not in error_reason:
                         logger.warning(
                             f"[{client_id}] Can't retry - error not related to connection limits: {error_reason}"
@@ -211,7 +253,7 @@ def stream_ts(request, channel_id):
                     f"[{client_id}] Making final attempt {attempt} at timeout boundary"
                 )
                 stream_url, stream_user_agent, transcode, profile_value = (
-                    generate_stream_url(channel_id)
+                    generate_stream_url(channel_id, user=user)
                 )
                 if stream_url is not None:
                     logger.info(
@@ -238,7 +280,7 @@ def stream_ts(request, channel_id):
                 )  # 503 Service Unavailable is appropriate here
 
             # Get the stream ID from the channel
-            stream_id, m3u_profile_id, _ = channel.get_stream()
+            stream_id, m3u_profile_id, _ = channel.get_stream(user=user)
             logger.info(
                 f"Channel {channel_id} using stream ID {stream_id}, m3u account profile ID {m3u_profile_id}"
             )
@@ -553,7 +595,7 @@ def stream_xc(request, username, password, channel_id):
         channel = get_object_or_404(Channel, id=channel_id)
 
     # @TODO: we've got the  file 'type' via extension, support this when we support multiple outputs
-    return stream_ts(request._request, str(channel.uuid))
+    return stream_ts(request._request, str(channel.uuid), user_id=user.id)
 
 
 @csrf_exempt

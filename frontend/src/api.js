@@ -1442,6 +1442,15 @@ export default class API {
     }
   }
 
+  static async getM3UProfilesAll() {
+    try {
+      const response = await request(`${host}/api/m3u/profiles/all/`);
+      return response;
+    } catch (e) {
+      errorNotification('Failed to retrieve all M3U profiles', e);
+    }
+  }
+
   static async refreshAccountInfo(profileId) {
     try {
       const response = await request(

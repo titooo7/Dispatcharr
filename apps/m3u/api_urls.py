@@ -15,6 +15,7 @@ app_name = "m3u"
 
 router = DefaultRouter()
 router.register(r"accounts", M3UAccountViewSet, basename="m3u-account")
+router.register(r"profiles", M3UAccountProfileViewSet, basename="m3u-profiles")
 router.register(
     r"accounts\/(?P<account_id>\d+)\/profiles",
     M3UAccountProfileViewSet,

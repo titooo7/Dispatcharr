@@ -24,12 +24,13 @@ def get_stream_object(id: str):
         logger.info(f"Fetching stream hash {id}")
         return get_object_or_404(Stream, stream_hash=id)
 
-def generate_stream_url(channel_id: str) -> Tuple[str, str, bool, Optional[int]]:
+def generate_stream_url(channel_id: str, user: Optional['User'] = None) -> Tuple[str, str, bool, Optional[int]]:
     """
     Generate the appropriate stream URL for a channel or stream based on its profile settings.
 
     Args:
         channel_id: The UUID of the channel or stream hash
+        user: Optional User object to filter M3U profiles
 
     Returns:
         Tuple[str, str, bool, Optional[int]]: (stream_url, user_agent, transcode_flag, profile_id)
@@ -52,14 +53,25 @@ def generate_stream_url(channel_id: str) -> Tuple[str, str, bool, Optional[int]]
 
             # Get active profiles for this M3U account
             m3u_profiles = m3u_account.profiles.filter(is_active=True)
+            
+            # Filter profiles based on user's allowed profiles
+            if user and user.m3u_profiles.exists():
+                m3u_profiles = m3u_profiles.filter(id__in=user.m3u_profiles.all())
+
             default_profile = next((obj for obj in m3u_profiles if obj.is_default), None)
 
-            if not default_profile:
-                logger.error(f"No default active profile found for M3U account {m3u_account.id}")
-                return None, None, False, None
-
             # Check profiles in order: default first, then others
-            profiles = [default_profile] + [obj for obj in m3u_profiles if not obj.is_default]
+            profiles = []
+            if default_profile:
+                profiles.append(default_profile)
+            
+            for obj in m3u_profiles:
+                if not obj.is_default:
+                    profiles.append(obj)
+
+            if not profiles:
+                logger.error(f"No active profiles found for M3U account {m3u_account.id} for user {user.username if user else 'Anonymous'}")
+                return None, None, False, None
 
             # Try to find an available profile with connection capacity
             redis_client = RedisClient.get_client()
@@ -123,7 +135,7 @@ def generate_stream_url(channel_id: str) -> Tuple[str, str, bool, Optional[int]]
 
         # Get stream and profile for this channel
         # Note: get_stream now returns 3 values (stream_id, profile_id, error_reason)
-        stream_id, profile_id, error_reason = channel.get_stream()
+        stream_id, profile_id, error_reason = channel.get_stream(user=user)
 
         if not stream_id or not profile_id:
             logger.error(f"No stream available for channel {channel_id}: {error_reason}")

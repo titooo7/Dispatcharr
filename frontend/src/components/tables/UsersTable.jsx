@@ -17,6 +17,8 @@ import {
   useMantineTheme,
   LoadingOverlay,
   Stack,
+  Badge,
+  Tooltip,
 } from '@mantine/core';
 import { CustomTable, useTable } from './CustomTable';
 import ConfirmationDialog from '../ConfirmationDialog';
@@ -221,6 +223,26 @@ const UsersTable = () => {
         },
       },
       {
+        header: 'M3U Profiles',
+        accessorKey: 'm3u_profiles',
+        size: 130,
+        cell: ({ getValue, row }) => {
+          const profiles = getValue() || [];
+          if (profiles.length === 0) {
+            return (
+              <Badge variant="dot" color="gray">
+                All
+              </Badge>
+            );
+          }
+          return (
+            <Badge variant="filled" color="blue">
+              {profiles.length} Profile{profiles.length > 1 ? 's' : ''}
+            </Badge>
+          );
+        },
+      },
+      {
         header: 'XC Password',
         accessorKey: 'custom_properties',
         size: 125,
@@ -319,6 +341,7 @@ const UsersTable = () => {
       last_login: renderHeaderCell,
       date_joined: renderHeaderCell,
       custom_properties: renderHeaderCell,
+      m3u_profiles: renderHeaderCell,
     },
   });
 
