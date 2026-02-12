@@ -122,7 +122,7 @@ cp .env.example .env
 Then run the build and apply migrations:
 
 ```bash
-docker compose -f docker/docker-compose.repostudy_aio.yml up -d --build
+docker compose --env-file .env -f docker/docker-compose.repostudy_aio.yml up -d --build
 
 # Apply database migrations
 docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py makemigrations accounts"
@@ -159,7 +159,7 @@ If the project directory is deleted, don't panic! Since you have been pushing yo
 Use this if you want to keep making changes to the code.
 1. **Re-clone the repo:** `git clone https://github.com/titooo7/Dispatcharr/`
 2. **Restore your `.env`:** (Hopefully you have a backup of your `DOMAIN` and other secrets).
-3. **Run the build:** `docker compose -f docker/docker-compose.repostudy_aio.yml up -d --build`
+3. **Run the build:** `docker compose --env-file .env -f docker/docker-compose.repostudy_aio.yml up -d --build`
    * *Note: This will be fast because it will pull the heavy 'base' image from your GHCR instead of rebuilding it.*
 
 #### Option B: Just Run the App (Production)
