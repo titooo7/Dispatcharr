@@ -129,6 +129,28 @@ docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispat
 docker exec -it dispatcharr_repostudy /bin/bash -c "source /etc/profile.d/dispatcharr.sh && python manage.py migrate"
 ```
 
+### 🆙 Updating and Pushing Changes
+
+If you make changes to the code and want to push them to your GitHub fork and update your GHCR images, use the provided helper script:
+
+1. **Push code to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Your commit message"
+   git push
+   ```
+
+2. **Update GHCR Images:**
+   ```bash
+   # Update the main application image (most common)
+   ./scripts/publish.sh app
+
+   # If you changed pyproject.toml or dependencies, update the base image first
+   ./scripts/publish.sh base
+   # Then update the app
+   ./scripts/publish.sh app
+   ```
+
 ## 🤝 Want to Contribute?
 
 We welcome **PRs, issues, ideas, and suggestions**!\
