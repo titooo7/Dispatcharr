@@ -165,9 +165,9 @@ python manage.py migrate
 ```
 
 ## 8. Required Infrastructure Fix
-**File:** `docker/docker-compose.aio.yml` (and other AIO variants)
+**File:** Rather than `docker/docker-compose.aio.yml` I use `docker/docker-compose.repostudy-aio.yml`
 
-To prevent "File Not Found" errors during the build process, the build context must be set to the project root rather than the docker subdirectory:
+To prevent "File Not Found" errors during the build process, the build context in `docker/docker-compose.repostudy-aio.yml` must be set to the project root rather than the docker subdirectory:
 
 ```yaml
 services:
@@ -183,13 +183,4 @@ If using `docker-compose.repostudy_aio.yml`, you must define the `DOMAIN` variab
 **File:** `.env`
 ```env
 DOMAIN=yourdomain.com
-```
-
-## 10. README Logo Update (Optional)
-**File:** `README.md`
-
-Update the logo URL to point to your specific repository to ensure it renders correctly:
-
-```markdown
-<img src="https://github.com/titooo7/Dispatcharr/blob/main/frontend/src/images/logo.png?raw=true" height="200" alt="Dispatcharr Logo" />
 ```
