@@ -4,6 +4,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      pull: false
     container_name: dispatcharr_repostudy
     # REMOVED PORTS MAPPING TO HIDE IP
     volumes:
