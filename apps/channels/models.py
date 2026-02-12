@@ -202,7 +202,7 @@ class Stream(models.Model):
 
         return stream_profile
 
-    def get_stream(self):
+    def get_stream(self, user=None):
         """
         Finds an available stream for the requested channel and returns the selected stream and profile.
         """
@@ -215,10 +215,19 @@ class Stream(models.Model):
         # Retrieve the M3U account associated with the stream.
         m3u_account = self.m3u_account
         m3u_profiles = m3u_account.profiles.all()
+
+        # Filter profiles based on user's allowed profiles if user is provided
+        if user and user.m3u_profiles.exists():
+            m3u_profiles = m3u_profiles.filter(id__in=user.m3u_profiles.all())
+
         default_profile = next((obj for obj in m3u_profiles if obj.is_default), None)
-        profiles = [default_profile] + [
-            obj for obj in m3u_profiles if not obj.is_default
-        ]
+        profiles = []
+        if default_profile:
+            profiles.append(default_profile)
+        
+        for obj in m3u_profiles:
+            if not obj.is_default:
+                profiles.append(obj)
 
         for profile in profiles:
             logger.info(profile)
